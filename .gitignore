@@ -1,0 +1,6 @@
+# Ignoring build files
+/build/
+# Logs
+*.log
+# Temporary files
+*.tmp
