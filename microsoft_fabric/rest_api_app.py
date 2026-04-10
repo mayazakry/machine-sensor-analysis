@@ -222,8 +222,8 @@ def health() -> Response:
     try:
         get_model()
         return jsonify({"status": "healthy", "model_loaded": True}), 200
-    except FileNotFoundError as exc:
-        return jsonify({"status": "degraded", "model_loaded": False, "error": str(exc)}), 503
+    except FileNotFoundError:
+        return jsonify({"status": "degraded", "model_loaded": False, "error": "Model file not found"}), 503
 
 
 @app.route("/model/info", methods=["GET"])
@@ -240,8 +240,8 @@ def model_info() -> Response:
                 "feature_columns": artefact.get("feature_columns"),
             }
         )
-    except FileNotFoundError as exc:
-        abort(503, description=str(exc))
+    except FileNotFoundError:
+        abort(503, description="Model not available. Train model first.")
 
 
 @app.route("/predict", methods=["POST"])
@@ -280,7 +280,7 @@ def predict_single() -> Response:
     except Exception as exc:  # noqa: BLE001
         logger.exception("Prediction error: %s", exc)
         _request_counts["errors"] += 1
-        abort(500, description=f"Prediction failed: {exc}")
+        abort(500, description="Prediction failed. Check server logs for details.")
 
     if result["is_anomaly"]:
         _request_counts["anomalies"] += 1
@@ -337,7 +337,7 @@ def predict_batch() -> Response:
     except Exception as exc:  # noqa: BLE001
         logger.exception("Batch prediction error: %s", exc)
         _request_counts["errors"] += 1
-        abort(500, description=f"Batch prediction failed: {exc}")
+        abort(500, description="Batch prediction failed. Check server logs for details.")
 
     results = []
     anomaly_count = 0

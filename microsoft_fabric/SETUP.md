@@ -246,9 +246,13 @@ az datafactory trigger start \
 ```bash
 python automl_trainer.py \
   --backend sklearn \
-  --data    ../data/sample_sensor_data.csv \
+  --data    data/sample_sensor_data.csv \
   --output-dir models/
 ```
+
+> **Note**: The sample data file is located at `data/sample_sensor_data.csv` relative
+> to the repository root. If running from the `microsoft_fabric/` directory, use
+> `../data/sample_sensor_data.csv`, or provide the full path to your own sensor CSV.
 
 Output:
 ```
