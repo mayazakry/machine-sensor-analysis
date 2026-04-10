@@ -1,0 +1,463 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "factoryName": {
+      "type": "string",
+      "defaultValue": "sensor-anomaly-adf",
+      "metadata": {
+        "description": "Name of the Azure Data Factory instance"
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Azure region for all resources"
+      }
+    },
+    "eventHubConnectionString": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Event Hub namespace connection string"
+      }
+    },
+    "eventHubName": {
+      "type": "string",
+      "defaultValue": "sensor-events",
+      "metadata": {
+        "description": "Event Hub entity name"
+      }
+    },
+    "lakehouseName": {
+      "type": "string",
+      "defaultValue": "SensorLakehouse",
+      "metadata": {
+        "description": "Microsoft Fabric Lakehouse name"
+      }
+    },
+    "fabricWorkspaceId": {
+      "type": "string",
+      "metadata": {
+        "description": "Microsoft Fabric Workspace ID (GUID)"
+      }
+    },
+    "fabricLakehouseId": {
+      "type": "string",
+      "metadata": {
+        "description": "Microsoft Fabric Lakehouse ID (GUID)"
+      }
+    },
+    "oneLakeAccountName": {
+      "type": "string",
+      "defaultValue": "onelake",
+      "metadata": {
+        "description": "OneLake storage account name"
+      }
+    }
+  },
+  "variables": {
+    "adfApiVersion": "2018-06-01",
+    "linkedServiceEventHub": "LS_EventHub_SensorData",
+    "linkedServiceOneLake": "LS_OneLake_SensorLakehouse",
+    "datasetEventHub": "DS_EventHub_SensorStream",
+    "datasetRawLakehouse": "DS_Lakehouse_RawSensorEvents",
+    "datasetProcessedLakehouse": "DS_Lakehouse_ProcessedSensorEvents",
+    "pipelineIngest": "PL_IngestSensorEvents",
+    "pipelineTransform": "PL_TransformSensorData",
+    "pipelineFull": "PL_SensorAnomalyDetectionFull",
+    "triggerContinuous": "TR_EventHub_Continuous",
+    "triggerScheduled": "TR_Scheduled_Nightly"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.DataFactory/factories",
+      "apiVersion": "[variables('adfApiVersion')]",
+      "name": "[parameters('factoryName')]",
+      "location": "[parameters('location')]",
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "properties": {}
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedservices",
+      "apiVersion": "[variables('adfApiVersion')]",
+      "name": "[concat(parameters('factoryName'), '/', variables('linkedServiceEventHub'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "AzureEventHub",
+        "typeProperties": {
+          "connectionString": {
+            "type": "SecureString",
+            "value": "[parameters('eventHubConnectionString')]"
+          }
+        },
+        "description": "Connection to Azure Event Hub receiving sensor telemetry"
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/linkedservices",
+      "apiVersion": "[variables('adfApiVersion')]",
+      "name": "[concat(parameters('factoryName'), '/', variables('linkedServiceOneLake'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+      ],
+      "properties": {
+        "type": "AzureDataLakeStorageGen2",
+        "typeProperties": {
+          "url": "[concat('https://', parameters('oneLakeAccountName'), '.dfs.fabric.microsoft.com')]",
+          "accountKey": {
+            "type": "SecureString",
+            "value": "@{linkedService().oneLakeKey}"
+          },
+          "tenant": "[subscription().tenantId]",
+          "subscriptionId": "[subscription().subscriptionId]",
+          "resourceGroupName": "[resourceGroup().name]"
+        },
+        "description": "Connection to Microsoft Fabric OneLake (Lakehouse Files)"
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/datasets",
+      "apiVersion": "[variables('adfApiVersion')]",
+      "name": "[concat(parameters('factoryName'), '/', variables('datasetEventHub'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories/linkedservices', parameters('factoryName'), variables('linkedServiceEventHub'))]"
+      ],
+      "properties": {
+        "type": "AzureEventHub",
+        "linkedServiceName": {
+          "referenceName": "[variables('linkedServiceEventHub')]",
+          "type": "LinkedServiceReference"
+        },
+        "typeProperties": {
+          "eventHubName": "[parameters('eventHubName')]"
+        },
+        "description": "Dataset representing the inbound Event Hub sensor stream"
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/datasets",
+      "apiVersion": "[variables('adfApiVersion')]",
+      "name": "[concat(parameters('factoryName'), '/', variables('datasetRawLakehouse'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories/linkedservices', parameters('factoryName'), variables('linkedServiceOneLake'))]"
+      ],
+      "properties": {
+        "type": "Parquet",
+        "linkedServiceName": {
+          "referenceName": "[variables('linkedServiceOneLake')]",
+          "type": "LinkedServiceReference"
+        },
+        "typeProperties": {
+          "location": {
+            "type": "AzureDataLakeStorageGen2Location",
+            "fileSystem": "[concat(parameters('fabricWorkspaceId'), '/', parameters('fabricLakehouseId'))]",
+            "folderPath": {
+              "value": "Files/raw_sensor_events/@{formatDateTime(utcNow(), 'yyyy/MM/dd')}",
+              "type": "Expression"
+            }
+          },
+          "compressionCodec": "snappy"
+        },
+        "schema": [
+          {"name": "event_id", "type": "String"},
+          {"name": "machine_id", "type": "String"},
+          {"name": "timestamp", "type": "String"},
+          {"name": "temperature", "type": "Double"},
+          {"name": "vibration", "type": "Double"},
+          {"name": "pressure", "type": "Double"},
+          {"name": "humidity", "type": "Double"},
+          {"name": "current", "type": "Double"},
+          {"name": "voltage", "type": "Double"},
+          {"name": "is_simulated_anomaly", "type": "Boolean"}
+        ],
+        "description": "Raw sensor events stored in Lakehouse as partitioned Parquet files"
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/datasets",
+      "apiVersion": "[variables('adfApiVersion')]",
+      "name": "[concat(parameters('factoryName'), '/', variables('datasetProcessedLakehouse'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories/linkedservices', parameters('factoryName'), variables('linkedServiceOneLake'))]"
+      ],
+      "properties": {
+        "type": "Parquet",
+        "linkedServiceName": {
+          "referenceName": "[variables('linkedServiceOneLake')]",
+          "type": "LinkedServiceReference"
+        },
+        "typeProperties": {
+          "location": {
+            "type": "AzureDataLakeStorageGen2Location",
+            "fileSystem": "[concat(parameters('fabricWorkspaceId'), '/', parameters('fabricLakehouseId'))]",
+            "folderPath": {
+              "value": "Files/processed_sensor_events/@{formatDateTime(utcNow(), 'yyyy/MM/dd')}",
+              "type": "Expression"
+            }
+          },
+          "compressionCodec": "snappy"
+        },
+        "description": "Enriched sensor events with rolling statistics and z-scores"
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "[variables('adfApiVersion')]",
+      "name": "[concat(parameters('factoryName'), '/', variables('pipelineIngest'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories/datasets', parameters('factoryName'), variables('datasetEventHub'))]",
+        "[resourceId('Microsoft.DataFactory/factories/datasets', parameters('factoryName'), variables('datasetRawLakehouse'))]"
+      ],
+      "properties": {
+        "description": "Ingest raw sensor events from Event Hub and land them in the Lakehouse as Parquet",
+        "activities": [
+          {
+            "name": "CopyEventHubToLakehouse",
+            "type": "Copy",
+            "typeProperties": {
+              "source": {
+                "type": "AzureEventHubSource",
+                "eventHubReaderProperties": {
+                  "dataFormat": "JSON"
+                }
+              },
+              "sink": {
+                "type": "ParquetSink",
+                "storeSettings": {
+                  "type": "AzureDataLakeStorageGen2WriteSettings"
+                },
+                "formatSettings": {
+                  "type": "ParquetWriteSettings"
+                }
+              },
+              "enableStaging": false,
+              "translator": {
+                "type": "TabularTranslator",
+                "typeConversion": true,
+                "typeConversionSettings": {
+                  "allowDataTruncation": true,
+                  "treatBooleanAsNumber": false
+                }
+              }
+            },
+            "inputs": [
+              {
+                "referenceName": "[variables('datasetEventHub')]",
+                "type": "DatasetReference"
+              }
+            ],
+            "outputs": [
+              {
+                "referenceName": "[variables('datasetRawLakehouse')]",
+                "type": "DatasetReference"
+              }
+            ],
+            "description": "Copy messages from Event Hub to Lakehouse raw zone"
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "[variables('adfApiVersion')]",
+      "name": "[concat(parameters('factoryName'), '/', variables('pipelineTransform'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories/datasets', parameters('factoryName'), variables('datasetRawLakehouse'))]",
+        "[resourceId('Microsoft.DataFactory/factories/datasets', parameters('factoryName'), variables('datasetProcessedLakehouse'))]"
+      ],
+      "properties": {
+        "description": "Transform raw sensor events: add rolling statistics, z-scores, and derived features",
+        "activities": [
+          {
+            "name": "TransformSensorData",
+            "type": "DataFlow",
+            "typeProperties": {
+              "dataflow": {
+                "referenceName": "DF_SensorEnrichment",
+                "type": "DataFlowReference"
+              },
+              "computeProperties": {
+                "location": "[parameters('location')]",
+                "computeType": "General",
+                "coreCount": 8,
+                "maxRows": 0
+              },
+              "staging": {
+                "linkedService": {
+                  "referenceName": "[variables('linkedServiceOneLake')]",
+                  "type": "LinkedServiceReference"
+                },
+                "folderPath": "adf-staging"
+              }
+            },
+            "inputs": [
+              {
+                "referenceName": "[variables('datasetRawLakehouse')]",
+                "type": "DatasetReference"
+              }
+            ],
+            "outputs": [
+              {
+                "referenceName": "[variables('datasetProcessedLakehouse')]",
+                "type": "DatasetReference"
+              }
+            ],
+            "description": "Apply enrichment transformations to raw sensor data"
+          },
+          {
+            "name": "ValidateOutputRowCount",
+            "type": "Validation",
+            "dependsOn": [
+              {
+                "activity": "TransformSensorData",
+                "dependencyConditions": ["Succeeded"]
+              }
+            ],
+            "typeProperties": {
+              "dataset": {
+                "referenceName": "[variables('datasetProcessedLakehouse')]",
+                "type": "DatasetReference"
+              },
+              "timeout": "PT10M",
+              "sleep": 10,
+              "minimumSize": 1
+            },
+            "description": "Ensure at least one row was written to the processed dataset"
+          }
+        ],
+        "parameters": {
+          "windowSize": {
+            "type": "int",
+            "defaultValue": 10
+          },
+          "zscoreThreshold": {
+            "type": "float",
+            "defaultValue": 3.0
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "[variables('adfApiVersion')]",
+      "name": "[concat(parameters('factoryName'), '/', variables('pipelineFull'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories/pipelines', parameters('factoryName'), variables('pipelineIngest'))]",
+        "[resourceId('Microsoft.DataFactory/factories/pipelines', parameters('factoryName'), variables('pipelineTransform'))]"
+      ],
+      "properties": {
+        "description": "Master pipeline: ingest → transform → load",
+        "activities": [
+          {
+            "name": "IngestFromEventHub",
+            "type": "ExecutePipeline",
+            "typeProperties": {
+              "pipeline": {
+                "referenceName": "[variables('pipelineIngest')]",
+                "type": "PipelineReference"
+              },
+              "waitOnCompletion": true
+            }
+          },
+          {
+            "name": "TransformAndEnrich",
+            "type": "ExecutePipeline",
+            "dependsOn": [
+              {
+                "activity": "IngestFromEventHub",
+                "dependencyConditions": ["Succeeded"]
+              }
+            ],
+            "typeProperties": {
+              "pipeline": {
+                "referenceName": "[variables('pipelineTransform')]",
+                "type": "PipelineReference"
+              },
+              "waitOnCompletion": true
+            }
+          },
+          {
+            "name": "NotifyOnFailure",
+            "type": "WebActivity",
+            "dependsOn": [
+              {
+                "activity": "TransformAndEnrich",
+                "dependencyConditions": ["Failed"]
+              }
+            ],
+            "typeProperties": {
+              "url": {
+                "value": "@pipeline().parameters.failureWebhookUrl",
+                "type": "Expression"
+              },
+              "method": "POST",
+              "body": {
+                "value": "{\"pipelineName\":\"@{pipeline().Pipeline}\",\"runId\":\"@{pipeline().RunId}\",\"status\":\"Failed\",\"errorMessage\":\"@{activity('TransformAndEnrich').error.message}\"}",
+                "type": "Expression"
+              }
+            },
+            "description": "Send failure notification to Teams webhook"
+          }
+        ],
+        "parameters": {
+          "failureWebhookUrl": {
+            "type": "string",
+            "defaultValue": ""
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/triggers",
+      "apiVersion": "[variables('adfApiVersion')]",
+      "name": "[concat(parameters('factoryName'), '/', variables('triggerScheduled'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories/pipelines', parameters('factoryName'), variables('pipelineFull'))]"
+      ],
+      "properties": {
+        "type": "ScheduleTrigger",
+        "typeProperties": {
+          "recurrence": {
+            "frequency": "Hour",
+            "interval": 1,
+            "startTime": "2026-04-10T00:00:00Z",
+            "timeZone": "UTC"
+          }
+        },
+        "pipelines": [
+          {
+            "pipelineReference": {
+              "referenceName": "[variables('pipelineFull')]",
+              "type": "PipelineReference"
+            },
+            "parameters": {}
+          }
+        ],
+        "description": "Trigger the full ETL pipeline every hour"
+      }
+    }
+  ],
+  "outputs": {
+    "dataFactoryName": {
+      "type": "string",
+      "value": "[parameters('factoryName')]"
+    },
+    "dataFactoryResourceId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+    },
+    "ingestPipelineName": {
+      "type": "string",
+      "value": "[variables('pipelineIngest')]"
+    },
+    "fullPipelineName": {
+      "type": "string",
+      "value": "[variables('pipelineFull')]"
+    }
+  }
+}
