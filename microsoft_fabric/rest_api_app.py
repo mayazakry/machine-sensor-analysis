@@ -61,17 +61,17 @@ FEATURE_COLUMNS = [
 # ---------------------------------------------------------------------------
 # Model Loader
 # ---------------------------------------------------------------------------
-_model_artefact: Optional[Dict[str, Any]] = None
+_model_artifact: Optional[Dict[str, Any]] = None
 
 
 def load_model(path: str = MODEL_PATH) -> Dict[str, Any]:
-    """Load a pickled model artefact from disk.
+    """Load a pickled model artifact from disk.
 
     Args:
         path: Path to the ``.pkl`` file produced by ``automl_trainer.py``.
 
     Returns:
-        Artefact dictionary with keys ``model``, ``scaler``, ``params``,
+        Artifact dictionary with keys ``model``, ``scaler``, ``params``,
         ``metrics``, ``trained_at``, and ``feature_columns``.
 
     Raises:
@@ -80,23 +80,23 @@ def load_model(path: str = MODEL_PATH) -> Dict[str, Any]:
     if not os.path.exists(path):
         raise FileNotFoundError(f"Model file not found: {path}")
     with open(path, "rb") as fh:
-        artefact = pickle.load(fh)
+        artifact = pickle.load(fh)
     logger.info(
-        "Model loaded from '%s' (trained_at=%s)", path, artefact.get("trained_at", "?")
+        "Model loaded from '%s' (trained_at=%s)", path, artifact.get("trained_at", "?")
     )
-    return artefact
+    return artifact
 
 
 def get_model() -> Dict[str, Any]:
-    """Return the cached model artefact, loading it on first call.
+    """Return the cached model artifact, loading it on first call.
 
     Returns:
-        Model artefact dictionary.
+        Model artifact dictionary.
     """
-    global _model_artefact  # noqa: PLW0603
-    if _model_artefact is None:
-        _model_artefact = load_model()
-    return _model_artefact
+    global _model_artifact  # noqa: PLW0603
+    if _model_artifact is None:
+        _model_artifact = load_model()
+    return _model_artifact
 
 
 # ---------------------------------------------------------------------------
@@ -117,10 +117,10 @@ def predict_anomaly(
           - ``confidence`` (float 0–1)
           - ``features_used`` (list of str)
     """
-    artefact = get_model()
-    model = artefact["model"]
-    scaler = artefact["scaler"]
-    feature_cols: List[str] = artefact.get("feature_columns", FEATURE_COLUMNS)
+    artifact = get_model()
+    model = artifact["model"]
+    scaler = artifact["scaler"]
+    feature_cols: List[str] = artifact.get("feature_columns", FEATURE_COLUMNS)
 
     # Build feature matrix
     rows = []
@@ -231,13 +231,13 @@ def model_info() -> Response:
     """Return metadata about the currently loaded model."""
     _check_api_key()
     try:
-        artefact = get_model()
+        artifact = get_model()
         return jsonify(
             {
-                "trained_at": artefact.get("trained_at"),
-                "params": artefact.get("params"),
-                "metrics": artefact.get("metrics"),
-                "feature_columns": artefact.get("feature_columns"),
+                "trained_at": artifact.get("trained_at"),
+                "params": artifact.get("params"),
+                "metrics": artifact.get("metrics"),
+                "feature_columns": artifact.get("feature_columns"),
             }
         )
     except FileNotFoundError:
@@ -383,7 +383,7 @@ def metrics() -> Response:
 # Entry Point
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":
-    # Pre-load model at startup to fail fast if artefact is missing
+    # Pre-load model at startup to fail fast if artifact is missing
     try:
         get_model()
     except FileNotFoundError as exc:

@@ -82,7 +82,7 @@ class SensorDataGenerator:
         self.anomaly_rate = anomaly_rate
         self._rng = np.random.default_rng(seed)
         logger.info(
-            "SensorDataGenerator initialised with %d machines, anomaly_rate=%.2f",
+            "SensorDataGenerator initialized with %d machines, anomaly_rate=%.2f",
             len(self.machine_ids),
             anomaly_rate,
         )
@@ -156,7 +156,7 @@ class SensorEventHubPublisher:
         namespace: Optional[str] = None,
         use_managed_identity: bool = False,
     ) -> None:
-        """Initialise the publisher.
+        """Initialize the publisher.
 
         Args:
             connection_string: Event Hub connection string (overrides env var).

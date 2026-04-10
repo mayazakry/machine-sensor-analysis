@@ -66,7 +66,7 @@ class SparkLakehouseLoader:
         lakehouse_name: str = LAKEHOUSE_NAME,
         spark_session=None,
     ) -> None:
-        """Initialise the loader.
+        """Initialize the loader.
 
         Args:
             lakehouse_name: Name of the Fabric Lakehouse.
@@ -87,7 +87,7 @@ class SparkLakehouseLoader:
 
                     self.spark = SparkSession.builder.getOrCreate()
         except Exception as exc:  # noqa: BLE001
-            logger.warning("Could not initialise SparkSession: %s", exc)
+            logger.warning("Could not initialize SparkSession: %s", exc)
             self.spark = None
 
         self.base_path = f"Tables/{lakehouse_name}"
@@ -239,7 +239,7 @@ class RestLakehouseLoader:
         lakehouse_id: str = LAKEHOUSE_ID,
         token: Optional[str] = None,
     ) -> None:
-        """Initialise the REST loader.
+        """Initialize the REST loader.
 
         Args:
             workspace_id: Fabric Workspace GUID.

@@ -7,7 +7,7 @@ This module supports two training backends:
   2. **Azure AutoML** – submit a training run to Azure Machine Learning /
      Fabric AutoML and retrieve the best model.
 
-The trained model artefact is saved to:
+The trained model artifact is saved to:
   - A local ``.pkl`` file for direct loading.
   - An MLflow run (if MLflow tracking URI is configured).
   - Azure ML Model Registry (Azure AutoML path).
@@ -243,7 +243,7 @@ class SklearnAnomalyTrainer:
         scaler: StandardScaler,
         metrics: Optional[Dict[str, float]] = None,
     ) -> str:
-        """Persist model artefacts to disk.
+        """Persist model artifacts to disk.
 
         Args:
             model: Trained model.
@@ -254,7 +254,7 @@ class SklearnAnomalyTrainer:
             Path to the saved model file.
         """
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
-        artefact = {
+        artifact = {
             "model": model,
             "scaler": scaler,
             "params": self.best_params,
@@ -264,12 +264,12 @@ class SklearnAnomalyTrainer:
         }
         path = os.path.join(self.output_dir, f"isolation_forest_{timestamp}.pkl")
         with open(path, "wb") as fh:
-            pickle.dump(artefact, fh)
+            pickle.dump(artifact, fh)
 
         # Also write a stable "latest" symlink
         latest_path = os.path.join(self.output_dir, "model_latest.pkl")
         with open(latest_path, "wb") as fh:
-            pickle.dump(artefact, fh)
+            pickle.dump(artifact, fh)
 
         # Save metadata sidecar
         meta_path = os.path.join(self.output_dir, f"metadata_{timestamp}.json")
@@ -332,7 +332,7 @@ class AzureAutoMLTrainer:
         workspace_name: str = AML_WORKSPACE_NAME,
         compute_cluster: str = AML_COMPUTE_CLUSTER,
     ) -> None:
-        """Initialise the Azure AutoML trainer.
+        """Initialize the Azure AutoML trainer.
 
         Args:
             subscription_id: Azure subscription ID.
@@ -464,7 +464,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--output-dir",
         default=MODEL_OUTPUT_DIR,
-        help="Directory for saved model artefacts",
+        help="Directory for saved model artifacts",
     )
     parser.add_argument(
         "--data-asset",

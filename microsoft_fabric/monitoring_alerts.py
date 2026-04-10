@@ -76,7 +76,7 @@ class AzureMonitorPublisher:
         resource_id: Optional[str] = None,
         token_provider=None,
     ) -> None:
-        """Initialise the publisher.
+        """Initialize the publisher.
 
         Args:
             resource_id: Full ARM resource ID of the monitored resource.
@@ -170,7 +170,7 @@ class TeamsNotifier:
     """
 
     def __init__(self, webhook_url: str = TEAMS_WEBHOOK_URL) -> None:
-        """Initialise the notifier.
+        """Initialize the notifier.
 
         Args:
             webhook_url: Teams Incoming Webhook URL.
@@ -336,7 +336,7 @@ class EmailAlerter:
         sender: str = ALERT_EMAIL_FROM,
         recipients: Optional[List[str]] = None,
     ) -> None:
-        """Initialise the email alerter.
+        """Initialize the email alerter.
 
         Args:
             connection_string: ACS resource connection string.
