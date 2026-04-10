@@ -4,3 +4,7 @@
 *.log
 # Temporary files
 *.tmp
+# Python byte-compiled / cache
+__pycache__/
+*.py[cod]
+*.pyo
