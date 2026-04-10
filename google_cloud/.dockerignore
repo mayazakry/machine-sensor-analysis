@@ -1,0 +1,44 @@
+# Byte-compiled / optimised / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+.env
+
+# Distribution / packaging
+*.egg-info/
+dist/
+build/
+
+# IDE / editor artifacts
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Test / coverage reports
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# Jupyter notebooks
+*.ipynb
+.ipynb_checkpoints/
+
+# Credentials – NEVER commit credentials
+*.json
+*.p12
+*.pem
+service-account*.key
+
+# Temporary files
+*.log
+*.tmp
+tmp/
+temp/
