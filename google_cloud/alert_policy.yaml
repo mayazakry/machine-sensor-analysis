@@ -1,0 +1,113 @@
+# =============================================================================
+# alert_policy.yaml – Cloud Monitoring Alert Policies
+#
+# Deploy with:
+#   gcloud alpha monitoring policies create --policy-from-file=alert_policy.yaml
+#
+# Replace YOUR_PROJECT_ID and YOUR_NOTIFICATION_CHANNEL_ID with your actual
+# values before deploying.
+#
+# Find existing notification channels:
+#   gcloud alpha monitoring channels list --project=YOUR_PROJECT_ID
+# =============================================================================
+
+---
+# Policy 1: High sensor anomaly rate
+displayName: "Sensor Anomaly Rate – High Alert"
+documentation:
+  content: |
+    The rolling 5-minute anomaly rate for one or more sensors has exceeded
+    10%. This may indicate equipment malfunction, a faulty sensor, or a
+    change in the operating environment.
+
+    **Immediate actions:**
+    1. Check the Looker Studio dashboard for affected sensor IDs.
+    2. Review recent anomaly_reason values in BigQuery.
+    3. Inspect the physical machine for signs of overheating or vibration.
+  mimeType: "text/markdown"
+conditions:
+  - displayName: "Anomaly rate > 10% for 5 minutes"
+    conditionThreshold:
+      filter: >
+        metric.type="custom.googleapis.com/sensor_anomaly/rate"
+        AND resource.type="global"
+      comparison: COMPARISON_GT
+      thresholdValue: 0.10
+      duration: "300s"
+      aggregations:
+        - alignmentPeriod: "60s"
+          perSeriesAligner: ALIGN_MEAN
+          crossSeriesReducer: REDUCE_MAX
+          groupByFields:
+            - "metric.labels.sensor_id"
+alertStrategy:
+  autoClose: "1800s"
+combiner: OR
+enabled: true
+notificationChannels:
+  - "projects/YOUR_PROJECT_ID/notificationChannels/YOUR_NOTIFICATION_CHANNEL_ID"
+
+---
+# Policy 2: Sustained high anomaly score
+displayName: "Sensor Anomaly Score – Critical Alert"
+documentation:
+  content: |
+    The mean Isolation Forest anomaly score for a sensor has exceeded 0.8
+    for at least 60 seconds, indicating a sustained abnormal condition.
+
+    **Immediate actions:**
+    1. Identify the sensor via the `sensor_id` label on the alert.
+    2. Review the raw readings in BigQuery for spike patterns.
+    3. Consider temporarily isolating the machine from production.
+  mimeType: "text/markdown"
+conditions:
+  - displayName: "Mean anomaly score > 0.8 for 1 minute"
+    conditionThreshold:
+      filter: >
+        metric.type="custom.googleapis.com/sensor_anomaly/score"
+        AND resource.type="global"
+      comparison: COMPARISON_GT
+      thresholdValue: 0.80
+      duration: "60s"
+      aggregations:
+        - alignmentPeriod: "60s"
+          perSeriesAligner: ALIGN_MEAN
+alertStrategy:
+  autoClose: "1800s"
+combiner: OR
+enabled: true
+notificationChannels:
+  - "projects/YOUR_PROJECT_ID/notificationChannels/YOUR_NOTIFICATION_CHANNEL_ID"
+
+---
+# Policy 3: Prediction latency degradation
+displayName: "Prediction Latency – SLO Breach"
+documentation:
+  content: |
+    The Cloud Run prediction service is responding slowly (p95 > 2000 ms).
+    This may indicate resource exhaustion, Vertex AI endpoint throttling,
+    or a cold-start issue.
+
+    **Immediate actions:**
+    1. Check Cloud Run metrics for CPU / memory saturation.
+    2. Review Vertex AI endpoint scaling settings.
+    3. Increase Cloud Run min-instances if cold starts are causing the issue.
+  mimeType: "text/markdown"
+conditions:
+  - displayName: "Mean prediction latency > 2000 ms for 2 minutes"
+    conditionThreshold:
+      filter: >
+        metric.type="custom.googleapis.com/sensor_anomaly/prediction_latency_ms"
+        AND resource.type="global"
+      comparison: COMPARISON_GT
+      thresholdValue: 2000.0
+      duration: "120s"
+      aggregations:
+        - alignmentPeriod: "60s"
+          perSeriesAligner: ALIGN_MEAN
+alertStrategy:
+  autoClose: "3600s"
+combiner: OR
+enabled: true
+notificationChannels:
+  - "projects/YOUR_PROJECT_ID/notificationChannels/YOUR_NOTIFICATION_CHANNEL_ID"
