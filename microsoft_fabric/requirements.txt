@@ -13,7 +13,7 @@ seaborn==0.12.2
 
 # REST API
 flask==2.3.2
-gunicorn==21.2.0
+gunicorn==23.0.0
 
 # Azure SDK – Event Hubs
 azure-eventhub==5.11.4
@@ -38,7 +38,7 @@ azure-ai-ml==1.12.0
 requests==2.31.0
 
 # Serialisation
-pyarrow==13.0.0
+pyarrow==14.0.1
 
 # Configuration
 pyyaml==6.0
@@ -47,4 +47,6 @@ pyyaml==6.0
 python-dotenv==1.0.0
 
 # MLflow tracking (optional – used by automl_trainer.py)
-mlflow==2.8.0
+# Requires >=3.10.2 to avoid numerous path traversal, RCE, and deserialization
+# vulnerabilities present in earlier versions.
+mlflow==3.10.2
