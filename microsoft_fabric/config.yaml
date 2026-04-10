@@ -1,0 +1,73 @@
+# =============================================================================
+# Microsoft Fabric – Environment Configuration Template
+# =============================================================================
+# Copy this file to config.yaml and fill in your actual values.
+# Do NOT commit a filled-in config.yaml to version control.
+# Use .env.example and environment variables for secrets.
+# =============================================================================
+
+environment: production   # production | staging | development
+
+azure:
+  subscription_id:  "YOUR_AZURE_SUBSCRIPTION_ID"
+  resource_group:   "sensor-anomaly-rg"
+  region:           "eastus"
+  tenant_id:        "YOUR_AZURE_TENANT_ID"
+
+event_hub:
+  namespace:        "sensor-anomaly-eh"
+  entity_name:      "sensor-events"
+  consumer_groups:
+    - "adf-consumer"
+    - "app-consumer"
+  partition_count:  4
+  retention_days:   7
+  # connection_string comes from environment variable EVENT_HUB_CONNECTION_STR
+
+fabric:
+  workspace_id:     "YOUR_FABRIC_WORKSPACE_GUID"
+  lakehouse_id:     "YOUR_FABRIC_LAKEHOUSE_GUID"
+  lakehouse_name:   "SensorLakehouse"
+  onelake_account:  "onelake"
+
+data_factory:
+  name:             "sensor-anomaly-adf"
+  pipeline_full:    "PL_SensorAnomalyDetectionFull"
+  trigger_schedule: "hourly"
+
+model:
+  output_dir:       "models"
+  contamination:    0.05
+  n_estimators:     200
+  random_state:     42
+  feature_columns:
+    - temperature
+    - vibration
+    - pressure
+    - humidity
+    - current
+    - voltage
+
+api:
+  port:             8000
+  debug:            false
+  workers:          2              # gunicorn workers
+  timeout:          30             # request timeout (seconds)
+  max_batch_size:   1000
+
+monitoring:
+  interval_seconds:       60
+  anomaly_alert_threshold: 0.10    # Alert when anomaly rate exceeds 10%
+  teams_webhook_url:      ""       # Set via TEAMS_WEBHOOK_URL env var
+  alert_email_to:         []       # Set via ALERT_EMAIL_TO env var
+
+powerbi:
+  workspace_name:   "SensorAnomalyDashboard"
+  dataset_name:     "SensorAnomalyDataset"
+  refresh_schedule: "hourly"
+
+simulation:
+  machine_count:    5
+  anomaly_rate:     0.05
+  publish_interval: 1.0            # seconds between readings
+  batch_size:       100

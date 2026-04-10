@@ -4,3 +4,13 @@
 *.log
 # Temporary files
 *.tmp
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+# Trained model artefacts (large binary files)
+microsoft_fabric/models/
+# Environment secrets
+.env
+# Jupyter checkpoints
+.ipynb_checkpoints/
